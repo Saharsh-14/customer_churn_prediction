@@ -1,0 +1,45 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
+import joblib
+
+def preprocess_data(file_path):
+    # Load data
+    df = pd.read_csv(file_path)
+    df['TotalCharges'] = pd.to_numeric(df['TotalCharges'], errors='coerce')
+    df.fillna(df.median(numeric_only=True), inplace=True)
+    
+    # Drop ID column
+    df.drop('customerID', axis=1, inplace=True)
+    
+    # Define target and features
+    X = df.drop('Churn', axis=1)
+    y = df['Churn'].map({'Yes': 1, 'No': 0})
+    
+    # Separate column types
+    cat_cols = X.select_dtypes(include='object').columns
+    num_cols = X.select_dtypes(exclude='object').columns
+    
+    # Preprocessing pipeline
+    numeric_transformer = Pipeline([
+        ('imputer', SimpleImputer(strategy='median')),
+        ('scaler', StandardScaler())
+    ])
+    
+    categorical_transformer = Pipeline([
+        ('imputer', SimpleImputer(strategy='most_frequent')),
+        ('encoder', OneHotEncoder(handle_unknown='ignore'))
+    ])
+    
+    preprocessor = ColumnTransformer([
+        ('num', numeric_transformer, num_cols),
+        ('cat', categorical_transformer, cat_cols)
+    ])
+    
+    # Split
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    return preprocessor, X_train, X_test, y_train, y_test
